@@ -1,0 +1,32 @@
+.container{
+    font-family: 'Noto Serif JP', serif;
+    margin-top: 80px;
+}
+h3{
+    margin-bottom: 30px;
+}
+th{
+    height: 30px;
+    text-align: center;
+}
+td{
+    height: 100px;
+}
+.today{
+    background-color: cornsilk !important;
+}
+.holiday{
+    background-color: lavenderblush !important;
+    color: red;
+}
+.empty{
+    background-color: whitesmoke !important;
+}
+.sun{
+    background-color: lavenderblush !important;
+    color: red;
+}
+.sat{
+    background-color: aliceblue !important;
+    color: blue;
+}
