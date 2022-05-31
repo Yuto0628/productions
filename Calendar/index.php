@@ -1,26 +1,72 @@
 <?php
 
 class Calendar{
+    /**
+     * カレンダーのインスタンス
+     * 
+     * @var Calendar 
+     */
     private static $instance = null;
 
+
+    /**
+     * コンストラクタを一つだけ生成する
+     * 
+     * @param string $ym
+     * @return Calendar
+     */
     public static function instance($ym){
         if(is_null(self::$instance)){
             self::$instance = new Calendar($ym);
         }
         return self::$instance;
     }
-
+    /**
+     * 年月日(yyyy-dd)
+     * 
+     * @var string
+     */
     private $ym;
+
+    /**
+     * タイムスタンプ
+     * 
+     * @var string
+     */
     private $timeStamp;
+
+    /**
+     * カレンダーの年月(yyyy/dd)
+     * 
+     * @var string
+     */
     private $htmlTitle;
-    private $prev;
-    private $next;
+
+    /**
+     * 現在から一ヶ月前の年月(yyyy-dd)
+     * 
+     * @var string
+     */
+    private $prevYm;
+
+    /**
+     * 現在から一ヶ月後の年月(yyyy-dd)
+     * 
+     * @var string
+     */
+    private $nextYm;
+    
+    /**
+     * コンストラクタ
+     * 
+     * @param string $ym 年月(yyyy-mm)
+     */
     private function __construct($ym){
         $this->setYm($ym);
         $this->timeStamp = strtotime($this->ym.'-01');
         $this->htmlTitle = date('Y/m', $this->timeStamp);
-        $this->prev = date('Y-m', strtotime('-1 month', $this->timeStamp));
-        $this->next = date('Y-m', strtotime('+1 month', $this->timeStamp));
+        $this->prevYm = date('Y-m', strtotime('-1 month', $this->timeStamp));
+        $this->nextYm = date('Y-m', strtotime('+1 month', $this->timeStamp));
     }
 
     public function setYm($ym){$this->ym = $ym;}
@@ -29,10 +75,16 @@ class Calendar{
     public function setHtmlTitle($htmlTitle){$this->htmlTitle = $htmlTitle;}
     public function getHtmlTitle(){return $this->htmlTitle;}
 
-    public function getPrev(){return $this->prev;}
+    public function getPrevYm(){return $this->prevYm;}
     
-    public function getNext(){return $this->next;}
+    public function getNextYm(){return $this->nextYm;}
 
+    /**
+     * 祝日の日付と祝日名を連想配列で取得
+     * 
+     * @param string $year 年(yyyy)
+     * @return array 年月日, 祝日名
+     */
     public function getHolidays($year){
         $apiKey = 'AIzaSyBB7tGP7AmpW5KrLHdirJWNlML5xb7P07M';
         $holidays = array();
@@ -58,62 +110,80 @@ class Calendar{
         return $holidays;
     }
 
-    public function getDbData($date, $pdo){
+    /**
+     * データベースから指定した日付のレコードを取得
+     * 
+     * @param string $date 年月日(yyyy-mm-dd)
+     * @param PDO $pdo 接続するデータベース
+     * @return array $records 年月日, 予定
+     */
+    public function getRecords($date, $pdo){
         $result = false;
         if(!$pdo==null){
-            $data = $pdo->prepare("SELECT * FROM todo where date = :date");
-            $data -> bindValue(':date', $date, PDO::PARAM_STR);
-            $result = $data -> execute();
+            $order = $pdo->prepare("SELECT * FROM todo where date = :date");
+            $order -> bindValue(':date', $date, PDO::PARAM_STR);
+            $result = $order -> execute();
         }else{
             return null;
         }
         if($result){
-            $dbData = $data->fetchAll();
-            return $dbData;
+            $records = $order->fetchAll();
+            return $records;
         }
     }
 
-    public function getContent($dbData){
+    /**
+     * レコードから予定を取り出してカレンダー用に加工
+     * 
+     * @param array $records 年月日, 予定
+     * @return string $contents 予定
+     */
+    public function getContent($records){
         $contents = '';
-        foreach($dbData as $record){
+        foreach($records as $record){
             $contents .=  '<p>'.$record['content'].'</p>';
         }
         return $contents;
     }
 
+    /**
+     * カレンダーの表示
+     * 
+     * @param PDO $pdo 接続するデータベース
+     */
     public function show($pdo){
 
         $year = date('Y', $this->timeStamp);
-        $day_count = date('t', $this->timeStamp);
+        $dayCount = date('t', $this->timeStamp);
         $today = date("Y-m-d");
     
-        $day_of_the_week = date('w', $this->timeStamp);
+        $dayOfWeek = date('w', $this->timeStamp);
         $week = '';
         $weeks = [];
-        $week .= str_repeat('<td class="empty"></td>', $day_of_the_week);
+        $week .= str_repeat('<td class="empty"></td>', $dayOfWeek);
 
         $holidaysArray = $this->getHolidays($year);
     
-        for($day = 1; $day <= $day_count; $day++, $day_of_the_week++){
+        for($day = 1; $day <= $dayCount; $day++, $dayOfWeek++){
             $date = $day<10? $this->ym.'-0'.$day: $this->ym.'-'.$day;
-            $dbData = $this->getDbData($date, $pdo);
-            $contents = $this->getContent($dbData);
+            $records = $this->getRecords($date, $pdo);
+            $contents = $this->getContent($records);
         
             if($today == $date){
                 $week .= '<td class="today">'.$day.$contents.'</p></td>';
             }elseif(isset($holidaysArray[$date])){
                 $week .= '<td class="holiday">'.$day.$contents.'</td>';
-            }elseif($day_of_the_week%7 === 0){
+            }elseif($dayOfWeek%7 === 0){
                 $week .= '<td class="sun">'.$day.$contents.'</td>';
-            }elseif($day_of_the_week%7 === 6){
+            }elseif($dayOfWeek%7 === 6){
                 $week .= '<td class="sat">'.$day.$contents.'</td>';
             }else{
                 $week .= '<td>'.$day.$contents.'</td>';
             }
         
-            if($day_of_the_week%7 == 6 || $day == $day_count){
-                if($day == $day_count){
-                    $week .= str_repeat('<td class="empty"></td>', 6 - $day_of_the_week%7);
+            if($dayOfWeek%7 == 6 || $day == $dayCount){
+                if($day == $dayCount){
+                    $week .= str_repeat('<td class="empty"></td>', 6 - $dayOfWeek%7);
                 }
                 $weeks[] = '<tr>'.$week.'</tr>';
                 $week = '';
@@ -130,7 +200,7 @@ date_default_timezone_set('Asia/Tokyo');
 
 $ym = isset($_GET['ym'])? $_GET['ym']: date('Y-m');
 $cal = Calendar::instance($ym);
-$pdo = new  PDO('mysql:host=localhost;dbname=calendar;charset=utf8', 'root', '', array(PDO::ATTR_EMULATE_PREPARES => false));
+$pdo = new PDO('mysql:host=localhost;dbname=calendar;charset=utf8', 'root', '', array(PDO::ATTR_EMULATE_PREPARES => false));
 
 
 ?>
@@ -149,7 +219,7 @@ $pdo = new  PDO('mysql:host=localhost;dbname=calendar;charset=utf8', 'root', '',
 </head>
 <body>
     <div class="container">
-        <h3><a href="?ym=<?php echo $cal->getPrev();?>">&lt;</a><?php echo $cal->getHtmlTitle(); ?><a href="?ym=<?php echo $cal->getNext(); ?>">&gt;</a></h3>
+        <h3><a href="?ym=<?php echo $cal->getPrevYm();?>">&lt;</a><?php echo $cal->getHtmlTitle(); ?><a href="?ym=<?php echo $cal->getNextYm(); ?>">&gt;</a></h3>
         <table class="table table-bordered">
             <tr>
                 <th class="sun">日</th>
