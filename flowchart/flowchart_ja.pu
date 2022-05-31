@@ -1,0 +1,34 @@
+@startuml
+title: 自販機のフローチャート
+
+(*)-down-> "お金を入れる"
+
+if "レバーを引く" then
+    -down-> [true]"お釣りを出す"
+else
+    -down-> [false]"金額の表示"
+endif
+
+if "ボタンを押す" then
+    -down-> [true]"飲み物を選択"
+    if "残金が値段以上" then
+        --> [true]"飲み物を出す"
+    else
+        --> [false]"お金を入れる"
+    endif
+else
+    -down-> [false]"お金を入れる"
+endif
+
+"飲み物を出す" -down-> "残金から値段を引く"
+"残金から値段を引く" -down->"続ける"
+
+if "続ける"  then
+    -->[true] "お金を入れる"
+else
+    -->[false] "お釣りを出す"
+endif
+
+"お釣りを出す" -down-> (*)
+
+@enduml

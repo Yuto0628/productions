@@ -1,0 +1,34 @@
+@startuml
+title: 自販機のフローチャート
+
+(*)-down-> "add(money)"
+
+if "pull lever" then
+    -down-> [true]"payBack(money)"
+else
+    -down-> [false]"show(money)"
+endif
+
+if "pushButton" then
+    -down-> [true]"pick(drink)"
+    if "money>price" then
+        --> [true]"get(drink)"
+    else
+        --> [false]"add(money)"
+    endif
+else
+    -down-> [false]"add(money)"
+endif
+
+"get(drink)" -down-> "sub(price)"
+"sub(price)" -down->"continue()"
+
+if "continue"  then
+    -->[true] "add(money)"
+else
+    -->[false] "payBack(money)"
+endif
+
+"payBack(money)" -down-> (*)
+
+@enduml
